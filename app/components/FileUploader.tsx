@@ -33,7 +33,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({onFileSelect}) => {
                     <img src="/images/pdf.png" alt="PDF" className="size-10"/>
                     <div className="flex items-center space-x-3">
                         <div>
-                            <p className="font-medium text-sm truncate text-gray-700 max-w-x5">{selectedFile.name}</p>
+                            <p className="font-medium text-sm truncate text-gray-700 max-w-xs">{selectedFile.name}</p>
                             <p className="text-sm text-gray-500">{formatSize(selectedFile.size)}</p>
                         </div>
                     </div>
