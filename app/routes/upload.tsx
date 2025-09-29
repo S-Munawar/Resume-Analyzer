@@ -7,8 +7,17 @@ import { usePuterStore } from '~/lib/puter';
 import { convertPdfToImage } from '../lib/PdfToImg';
 import { generateUUID } from '~/lib/utils';
 import { prepareInstructions } from '../../constants/index';
+import { useNavigate } from 'react-router';
+import { extractTextFromPdf } from '~/lib/PdfToImg';
+import { analyzeResumeLocally } from '~/lib/localAnalyzer';
+
+export const meta = () => ([
+  { title: 'Resume.io | Upload' },
+  { name: 'description', content: 'Upload your resume' }
+])
 
 const Upload = () => {
+  const navigate = useNavigate();
   const {auth, fs, ai, kv, isLoading } = usePuterStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusText, setStatusText] = useState('');
@@ -69,29 +78,62 @@ const Upload = () => {
     setStatusText('Analyzing...');
     
     try {
-        console.log('Calling AI feedback with:', {
-            filePath: uploadFile.path,
-            instructions: prepareInstructions({jobTitle, jobDescription})
-        });
+        let feedback: any = null;
+        let feedbackText = '';
         
-        const feedback = await ai.feedback(
-            uploadFile.path,
-            prepareInstructions({jobTitle, jobDescription})
-        );
+        // Try Puter AI first
+        try {
+            setStatusText('Analyzing with Puter AI...');
+            console.log('Calling Puter AI feedback with:', {
+                filePath: uploadFile.path,
+                instructions: prepareInstructions({jobTitle, jobDescription})
+            });
+            
+            feedback = await ai.feedback(
+                uploadFile.path,
+                prepareInstructions({jobTitle, jobDescription})
+            );
+            
+            console.log('Puter AI feedback received:', feedback);
+            
+            if (feedback) {
+                feedbackText = typeof feedback.message.content === 'string' ? 
+                    feedback.message.content : 
+                    feedback.message.content[0].text;
+            }
+        } catch (puterError) {
+            console.log('Puter AI failed, trying OpenAI fallback...', puterError);
+        }
         
-        console.log('AI feedback received:', feedback);
-
-        if (!feedback) {
-            console.error('No feedback received from AI');
+        // Skip Gemini for now, go directly to OpenAI
+        // First, try local analysis (always works, no API needed)
+        if (!feedback || !feedbackText) {
+            try {
+                setStatusText('Analyzing resume with advanced local AI...');
+                console.log('Extracting text from PDF for local analysis...');
+                
+                const resumeText = await extractTextFromPdf(file);
+                console.log('PDF text extracted, length:', resumeText.length);
+                
+                const localFeedback = analyzeResumeLocally(resumeText, jobTitle, jobDescription);
+                
+                console.log('Local analysis completed successfully');
+                feedbackText = localFeedback;
+                
+            } catch (localError) {
+                console.error('Local analysis failed:', localError);
+            }
+        }
+        
+        if (!feedbackText) {
+            console.error('Critical error: All analysis methods failed');
             setIsProcessing(false);
-            setStatusText('Failed to get AI feedback');
+            setStatusText('Analysis failed. Please try uploading your resume again.');
             return;
         }
 
-        setStatusText('Done!');
+        setStatusText('Analysis complete!');
         setIsProcessing(false);
-
-        const feedbackText = typeof feedback.message.content === 'string' ? feedback.message.content : feedback.message.content[0].text;
         data.feedback = feedbackText;
         
         console.log('Saving data to KV store:', data);
@@ -99,7 +141,8 @@ const Upload = () => {
         
         setStatusText('Analysis complete! redirecting...');
         console.log('Final data:', data);
-        console.log('Feedback text:', feedbackText);
+        navigate(`/resume/${uuid}`);
+
     } catch (error) {
         console.error('Error during AI analysis:', error);
         setIsProcessing(false);

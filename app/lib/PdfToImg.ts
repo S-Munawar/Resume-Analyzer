@@ -82,3 +82,36 @@ export async function convertPdfToImage(
     };
   }
 }
+
+// Function to extract text from PDF using the same PDF.js library
+export async function extractTextFromPdf(file: File): Promise<string> {
+  try {
+    console.log('Extracting text from PDF...');
+    
+    const lib = await loadPdfJs();
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
+    
+    let fullText = '';
+    
+    // Extract text from all pages
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      
+      fullText += pageText + '\n\n';
+    }
+    
+    console.log('Text extraction completed, length:', fullText.length);
+    return fullText.trim();
+    
+  } catch (error) {
+    console.error('Error extracting PDF text:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to extract text from PDF: ${errorMessage}`);
+  }
+}
