@@ -24,9 +24,9 @@ const ResumeCard = ({resume: {id, companyName, jobTitle, feedback, imagePath}}: 
             <div className="flex flex-col gap-2">
             {companyName && <h2 className="!text-black font-bold break-words">{companyName}</h2>}
             {jobTitle && <h2 className="text-lg break-words text-gray-500">{jobTitle}</h2>}
-            if (!companyName && !jobTitle) {
+            {!companyName && !jobTitle && (
                 <h2 className="!text-black font-bold">Resume</h2>
-            }
+            )}
             </div>
             <div className="flex-shrink-0">
                 <ScoreCircle score={feedback.overallScore} />

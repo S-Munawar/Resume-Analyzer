@@ -28,28 +28,45 @@ export default function Home() {
     const loadResumes = async () => {
       setLoading(true);
       try {
-        const resumes = (await kv.list(('resume:*')) as KVItem[]);
-        const parsedResumes = resumes?.map((resume) => {
-          if (!resume.value) {
-            console.warn('Resume has no value:', resume);
-            return null;
+        console.log('Loading resumes...');
+        const resumeKeys = await kv.list('resume-*') as string[];
+        console.log('Found resume keys:', resumeKeys);
+        
+        const parsedResumes: Resume[] = [];
+        
+        for (const key of resumeKeys) {
+          console.log('Processing key:', key);
+          
+          // Skip metadata keys and only process actual resume keys
+          if (key.startsWith('resume-') && !key.includes('last_change_timestamp')) {
+            try {
+              // Get the actual value using the key
+              const resumeData = await kv.get(key);
+              console.log('Retrieved data for key', key, ':', resumeData);
+              
+              if (resumeData) {
+                const parsed = JSON.parse(resumeData) as Resume;
+                parsedResumes.push(parsed);
+              }
+            } catch (error) {
+              console.error('Failed to process resume key:', error, key);
+            }
           }
-          try {
-            return JSON.parse(resume.value) as Resume;
-          } catch (parseError) {
-            console.error('Failed to parse resume:', parseError, resume);
-            return null;
-          }
-        }).filter(Boolean) as Resume[];
-        setResumes(parsedResumes || []);
+        }
+        
+        console.log('Final parsed resumes:', parsedResumes);
+        setResumes(parsedResumes);
       } catch (error) {
         console.error('Failed to load resumes:', error);
         setResumes([]);
       }
       setLoading(false);
     };
-    loadResumes();
-  }, [auth.isAuthenticated]);
+    
+    if (auth.isAuthenticated) {
+      loadResumes();
+    }
+  }, [auth.isAuthenticated, kv]);
 
   return <main className="bg-[url('/images/bg-main.svg')] bg-cover">
     <Navbar />
