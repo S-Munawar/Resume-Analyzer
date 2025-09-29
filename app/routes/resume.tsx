@@ -9,7 +9,7 @@ import Details from '~/components/details';
 export const meta = () => ([
   { title: 'Resume.io | Resume' },
   { name: 'description', content: 'View your resume details' }
-]);
+])
 
 const Resume = () => {
     const {auth, isLoading, fs, kv} = usePuterStore();
@@ -117,15 +117,12 @@ const Resume = () => {
                     {feedback ? (
                         <div className="flex flex-col gray">
                             <Summary feedback={feedback} />
-                            <ATS score= {feedback.ATS.score || 0} suggestions={feedback.ATS.tips || []} />
-
-                            <Details feedback={feedback}/>
+                            <ATS score={feedback.ATS.score || 0} suggestions={feedback.ATS.tips || []} />
+                            <Details feedback={feedback} />
                         </div>
-
                     ) : (
                         <img src="/images/resume-2.gif" alt="Processing..." className="w-full"/>
-                    )
-                    }
+                    )}
                 </div>
             </section>
         </div>

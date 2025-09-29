@@ -3,23 +3,8 @@
  * Uses advanced text analysis algorithms to provide comprehensive feedback
  */
 
-interface ResumeAnalysis {
-  overall_score: number;
-  ats_score: number;
-  sections: {
-    contact_info: SectionAnalysis;
-    professional_summary: SectionAnalysis;
-    experience: SectionAnalysis;
-    education: SectionAnalysis;
-    skills: SectionAnalysis;
-    formatting: SectionAnalysis;
-  };
-  recommendations: string[];
-  strengths: string[];
-  areas_for_improvement: string[];
-  word_count: number;
-  analysis_method: string;
-}
+// Import types from the global types file
+// The Resume and Feedback types are already defined globally
 
 interface SectionAnalysis {
   score: number;
@@ -29,6 +14,7 @@ interface SectionAnalysis {
 
 /**
  * Comprehensive local resume analysis using NLP techniques
+ * Returns both the new detailed format and the legacy compatible format
  */
 export function analyzeResumeLocally(extractedText: string, jobTitle?: string, jobDescription?: string): string {
   try {
@@ -60,37 +46,79 @@ export function analyzeResumeLocally(extractedText: string, jobTitle?: string, j
     const overallScore = Math.round(sectionScores.reduce((a, b) => a + b, 0) / sectionScores.length);
     const atsScore = calculateATSScore(text, extractedText, overallScore);
     
-    // Generate recommendations
-    const recommendations = generateRecommendations(
+    // Helper function to convert section analysis to tips
+    const convertSectionToTips = (section: SectionAnalysis) => {
+      const tips: { type: "good" | "improve"; tip: string; explanation: string; }[] = [];
+      
+      if (section.score >= 80) {
+        tips.push({
+          type: "good",
+          tip: section.feedback,
+          explanation: section.feedback
+        });
+      } else {
+        tips.push({
+          type: "improve",
+          tip: section.feedback,
+          explanation: section.feedback
+        });
+      }
+      
+      // Add details as additional tips if available
+      if (section.details) {
+        section.details.forEach((detail: string) => {
+          const isPositive = detail.startsWith("✓");
+          if (!isPositive && !detail.startsWith("•")) {
+            tips.push({
+              type: "improve",
+              tip: detail.replace("✗ ", ""),
+              explanation: "This is important for professional presentation and ATS compatibility"
+            });
+          }
+        });
+      }
+      
+      return tips;
+    };
+
+    // Generate ATS recommendations
+    const atsRecommendations = generateRecommendations(
       { contactInfo, professionalSummary, experience, education, skills, formatting },
       jobTitle,
       jobDescription
     );
-    
-    // Identify strengths and areas for improvement
-    const strengths = identifyStrengths({ contactInfo, professionalSummary, experience, education, skills, formatting });
-    const areasForImprovement = identifyAreasForImprovement({ contactInfo, professionalSummary, experience, education, skills, formatting });
-    
-    const analysis: ResumeAnalysis = {
-      overall_score: overallScore,
-      ats_score: atsScore,
-      sections: {
-        contact_info: contactInfo,
-        professional_summary: professionalSummary,
-        experience: experience,
-        education: education,
-        skills: skills,
-        formatting: formatting
+
+    // Create Feedback structure directly
+    const feedback: Feedback = {
+      overallScore: overallScore,
+      ATS: {
+        score: atsScore,
+        tips: atsRecommendations.slice(0, 5).map(rec => ({
+          type: "improve" as const,
+          tip: rec
+        }))
       },
-      recommendations,
-      strengths,
-      areas_for_improvement: areasForImprovement,
-      word_count: wordCount,
-      analysis_method: "Advanced Local NLP Analysis"
+      toneAndStyle: {
+        score: professionalSummary.score,
+        tips: convertSectionToTips(professionalSummary)
+      },
+      content: {
+        score: experience.score,
+        tips: convertSectionToTips(experience)
+      },
+      structure: {
+        score: formatting.score,
+        tips: convertSectionToTips(formatting)
+      },
+      skills: {
+        score: skills.score,
+        tips: convertSectionToTips(skills)
+      }
     };
     
     console.log('Local analysis complete - Overall Score:', overallScore);
-    return JSON.stringify(analysis, null, 2);
+    
+    return JSON.stringify(feedback, null, 2);
     
   } catch (error) {
     console.error('Local analysis error:', error);
@@ -300,20 +328,43 @@ function identifyAreasForImprovement(sections: any): string[] {
 
 function generateFallbackAnalysis(extractedText: string): string {
   const wordCount = extractedText.split(/\s+/).length;
-  return JSON.stringify({
-    overall_score: 65,
-    ats_score: 60,
-    sections: {
-      contact_info: { score: 70, feedback: "Basic contact information detected" },
-      experience: { score: 60, feedback: "Experience section needs enhancement" },
-      skills: { score: 65, feedback: "Skills section could be expanded" }
+  
+  // Return in the expected Feedback format
+  const fallbackFeedback: Feedback = {
+    overallScore: 65,
+    ATS: {
+      score: 60,
+      tips: [
+        { type: "improve", tip: "Add more relevant keywords for better ATS compatibility" },
+        { type: "improve", tip: "Use standard section headings like 'Experience' and 'Education'" }
+      ]
     },
-    recommendations: [
-      "Add quantified achievements to your experience section",
-      "Include relevant keywords for your target position",
-      "Ensure consistent formatting throughout"
-    ],
-    word_count: wordCount,
-    analysis_method: "Basic Text Analysis"
-  }, null, 2);
+    toneAndStyle: {
+      score: 70,
+      tips: [
+        { type: "improve", tip: "Add a professional summary section", explanation: "A compelling summary helps recruiters quickly understand your value proposition" }
+      ]
+    },
+    content: {
+      score: 60,
+      tips: [
+        { type: "improve", tip: "Add quantified achievements to your experience section", explanation: "Numbers and metrics make your accomplishments more impactful" }
+      ]
+    },
+    structure: {
+      score: 65,
+      tips: [
+        { type: "improve", tip: "Ensure consistent formatting throughout", explanation: "Consistent formatting improves readability and professionalism" }
+      ]
+    },
+    skills: {
+      score: 65,
+      tips: [
+        { type: "improve", tip: "Expand your skills section with relevant technologies", explanation: "Include both technical and soft skills relevant to your target role" }
+      ]
+    }
+  };
+  
+  return JSON.stringify(fallbackFeedback, null, 2);
 }
+

@@ -29,37 +29,20 @@ const Upload = () => {
     
     try {
         setIsProcessing(true);
-        console.log('Starting analysis for:', {companyName, jobTitle, file: file.name});
         
         setStatusText('Uploading resume...');
         const uploadFile = await fs.upload([file]);
-        console.log('File upload result:', uploadFile);
 
-        if (!uploadFile) {
-            setIsProcessing(false);
-            setStatusText('Failed to upload file');
-            return;
-        }
+        if (!uploadFile) return setStatusText('Failed to upload file');
         
         setStatusText('Converting PDF to image...');
         const image = await convertPdfToImage(file);
-        console.log('PDF conversion result:', image);
         
-        if (!image.file) {
-            setIsProcessing(false);
-            setStatusText(image.error || 'Failed to convert PDF to image');
-            return;
-        }
+        if (!image.file) return setStatusText(image.error || 'Failed to convert PDF to image');
         
         setStatusText('Uploading image...');
         const uploadImage = await fs.upload([image.file]);
-        console.log('Image upload result:', uploadImage);
-        
-        if (!uploadImage) {
-            setIsProcessing(false);
-            setStatusText('Failed to upload image');
-            return;
-        }
+        if (!uploadImage) return setStatusText('Failed to upload image');
         
         setStatusText('Preparing data...');
         const uuid = await generateUUID();
@@ -73,84 +56,24 @@ const Upload = () => {
             feedback: '',
         }
         
-        console.log('Saving initial data to KV store...');
         await kv.set(`resume-${uuid}`, JSON.stringify(data));
-    setStatusText('Analyzing...');
-    
-    try {
-        let feedback: any = null;
-        let feedbackText = '';
-        
-        // Try Puter AI first
-        try {
-            setStatusText('Analyzing with Puter AI...');
-            console.log('Calling Puter AI feedback with:', {
-                filePath: uploadFile.path,
-                instructions: prepareInstructions({jobTitle, jobDescription})
-            });
-            
-            feedback = await ai.feedback(
-                uploadFile.path,
-                prepareInstructions({jobTitle, jobDescription})
-            );
-            
-            console.log('Puter AI feedback received:', feedback);
-            
-            if (feedback) {
-                feedbackText = typeof feedback.message.content === 'string' ? 
-                    feedback.message.content : 
-                    feedback.message.content[0].text;
-            }
-        } catch (puterError) {
-            console.log('Puter AI failed, trying OpenAI fallback...', puterError);
-        }
-        
-        // Skip Gemini for now, go directly to OpenAI
-        // First, try local analysis (always works, no API needed)
-        if (!feedback || !feedbackText) {
-            try {
-                setStatusText('Analyzing resume with advanced local AI...');
-                console.log('Extracting text from PDF for local analysis...');
-                
-                const resumeText = await extractTextFromPdf(file);
-                console.log('PDF text extracted, length:', resumeText.length);
-                
-                const localFeedback = analyzeResumeLocally(resumeText, jobTitle, jobDescription);
-                
-                console.log('Local analysis completed successfully');
-                feedbackText = localFeedback;
-                
-            } catch (localError) {
-                console.error('Local analysis failed:', localError);
-            }
-        }
-        
-        if (!feedbackText) {
-            console.error('Critical error: All analysis methods failed');
-            setIsProcessing(false);
-            setStatusText('Analysis failed. Please try uploading your resume again.');
-            return;
-        }
+        setStatusText('Analyzing...');
 
-        setStatusText('Analysis complete!');
-        setIsProcessing(false);
-        data.feedback = feedbackText;
-        
-        console.log('Saving data to KV store:', data);
+        const resumeText = await extractTextFromPdf(file);
+        const feedback = await analyzeResumeLocally(resumeText, jobTitle, jobDescription);
+        console.log('Local analysis completed successfully');
+
+        if (!feedback) return setStatusText('Analysis failed. Please try uploading your resume again.');
+
+        // analyzeResumeLocally returns a JSON string directly
+        data.feedback = JSON.parse(feedback);
         await kv.set(`resume-${uuid}`, JSON.stringify(data));
         
         setStatusText('Analysis complete! redirecting...');
         console.log('Final data:', data);
         navigate(`/resume/${uuid}`);
-
-    } catch (error) {
-        console.error('Error during AI analysis:', error);
-        setIsProcessing(false);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        setStatusText(`Analysis failed: ${errorMessage}`);
-        return;
     }
-    } catch (overallError) {
+    catch (overallError) {
         console.error('Overall error in handleAnalyze:', overallError);
         setIsProcessing(false);
         const errorMessage = overallError instanceof Error ? overallError.message : 'Unknown error occurred';
