@@ -6,7 +6,6 @@ import FileUploader from '~/components/FileUploader';
 import { usePuterStore } from '~/lib/puter';
 import { convertPdfToImage } from '../lib/PdfToImg';
 import { generateUUID } from '~/lib/utils';
-import { prepareInstructions } from '../../constants/index';
 import { useNavigate } from 'react-router';
 import { extractTextFromPdf } from '~/lib/PdfToImg';
 import { analyzeResumeLocally } from '~/lib/localAnalyzer';
@@ -21,7 +20,7 @@ const Upload = () => {
   const {auth, fs, ai, kv, isLoading } = usePuterStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusText, setStatusText] = useState('');
-  const [file, setFile] = useState<File | null>(null); // State to hold the selected file
+  const [file, setFile] = useState<File | null>(null); // State to hold the selected file, holds file object or null
   const handleFileSelect = (file: File | null) => { 
     setFile(file);
   }
@@ -82,7 +81,7 @@ const Upload = () => {
 }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+    event.preventDefault(); // Prevent default form submission behavior
     const form = event.currentTarget;
     if (!form) return;
     const formData = new FormData(form);
