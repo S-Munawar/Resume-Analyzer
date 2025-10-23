@@ -16,6 +16,11 @@ const ResumeCard = ({resume: {id, companyName, jobTitle, feedback, imagePath}}: 
       setResumeUrl(url);
     };
     loadResumes();
+    return () => {
+    if (resumeUrl) {
+      URL.revokeObjectURL(resumeUrl); // Free memory
+    }
+  };
   }, [imagePath]);
 
   return (

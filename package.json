@@ -6,7 +6,8 @@
     "build": "react-router build",
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
-    "typecheck": "react-router typegen && tsc"
+    "typecheck": "react-router typegen && tsc",
+    "pages:deploy": "wrangler pages deploy build --project-name=resume-analyzer"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
